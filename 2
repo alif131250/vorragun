@@ -1,0 +1,136 @@
+ขั้นตอนที่ 1: การซื้ออุปกรณ์
+ก่อนที่เราจะเริ่มสร้างโปรเจคนี้ คุณจะต้องซื้ออุปกรณ์ที่จำเป็นต่อการทำงาน ดังนี้:
+
+บอร์ด ESP8266:
+
+ตัวเลือกที่แนะนำคือ NodeMCU หรือ Wemos D1 mini ซึ่งทั้งสองบอร์ดนี้มีราคาไม่แพงและใช้งานง่าย
+คุณสามารถหาซื้อได้จากร้านออนไลน์เช่น Lazada, Shopee, หรือร้านอุปกรณ์อิเล็กทรอนิกส์ทั่วไป
+LED:
+
+คุณจะต้องใช้ LED (ประมาณ 5mm) 1 ดวงเพื่อควบคุม
+ถ้าใช้ สีแดง หรือ สีเขียว ก็สามารถใช้งานได้
+Resistor (ตัวต้านทาน):
+
+ใช้ 220Ω หรือ 330Ω เพื่อป้องกันไม่ให้กระแสไฟฟ้ามากเกินไป ทำให้ LED พัง
+สาย Jumper:
+
+ใช้สำหรับการเชื่อมต่อระหว่างบอร์ด ESP8266 และ LED
+สาย USB:
+
+สำหรับเชื่อมต่อ ESP8266 กับคอมพิวเตอร์เพื่ออัพโหลดโค้ด
+ขั้นตอนที่ 2: การเตรียมอุปกรณ์
+การเชื่อมต่อ LED:
+ต่อ ขั้วบวก (Anode) ของ LED ไปที่ GPIO2 (D4) ของ ESP8266
+ต่อ ขั้วลบ (Cathode) ของ LED ไปที่ GND ของ ESP8266 ผ่าน Resistor (220Ω หรือ 330Ω)
+การเชื่อมต่อ:
+LED Anode (ขั้วบวก) → GPIO2 (D4) ของ ESP8266
+LED Cathode (ขั้วลบ) → GND ของ ESP8266 ผ่าน Resistor
+ขั้นตอนที่ 3: การติดตั้ง Arduino IDE
+ดาวน์โหลด Arduino IDE:
+
+ไปที่เว็บไซต์ Arduino และดาวน์โหลดเวอร์ชันที่เหมาะสมกับระบบปฏิบัติการของคุณ (Windows, macOS หรือ Linux)
+ติดตั้ง ESP8266 Board:
+
+เปิด Arduino IDE แล้วไปที่ File → Preferences.
+ในช่อง Additional Boards Manager URLs ให้เพิ่ม URL ของ ESP8266:
+bash
+Copy code
+http://arduino.esp8266.com/stable/package_esp8266com_index.json
+ไปที่ Tools → Board → Boards Manager...
+ค้นหา "ESP8266" และติดตั้ง ESP8266 boards
+เลือก NodeMCU 1.0 (ESP-12E Module) หรือ Wemos D1 mini ใน Tools → Board
+ขั้นตอนที่ 4: การเขียนโค้ด
+ต่อไปนี้คือลำดับการทำงานของโค้ดใน Arduino IDE ที่จะช่วยให้คุณสามารถควบคุม LED ผ่าน Web Server บน ESP8266
+
+เปิด Arduino IDE ขึ้นมา
+คัดลอกโค้ดด้านล่างนี้ไปวางใน Arduino IDE
+โค้ดตัวอย่าง:
+cpp
+Copy code
+#include <ESP8266WiFi.h>
+#include <ESP8266WebServer.h>
+
+// ตั้งค่า Wi-Fi
+const char* ssid = "ชื่อ Wi-Fi ของคุณ";  // ชื่อ Wi-Fi
+const char* password = "รหัสผ่าน Wi-Fi ของคุณ";  // รหัสผ่าน Wi-Fi
+
+// กำหนดพอร์ตของ Web Server
+ESP8266WebServer server(80);
+
+// กำหนด LED pin
+const int ledPin = 2;  // GPIO2 (D4) บน ESP8266
+
+void setup() {
+  // เริ่มต้น Serial communication
+  Serial.begin(115200);
+
+  // กำหนด LED Pin เป็น OUTPUT
+  pinMode(ledPin, OUTPUT);
+
+  // เชื่อมต่อ Wi-Fi
+  WiFi.begin(ssid, password);
+
+  // รอจนกว่าเชื่อมต่อ Wi-Fi เสร็จ
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("กำลังเชื่อมต่อ Wi-Fi...");
+  }
+
+  // เมื่อเชื่อมต่อเสร็จ
+  Serial.println("เชื่อมต่อ Wi-Fi สำเร็จ!");
+  Serial.print("IP Address: ");
+  Serial.println(WiFi.localIP());  // แสดง IP Address ของ ESP8266
+
+  // กำหนด Route ของ Web Server
+  server.on("/", HTTP_GET, []() {
+    String html = "<html><body><h1>LED Control</h1>";
+    html += "<p><a href=\"/on\"><button>เปิด LED</button></a></p>";
+    html += "<p><a href=\"/off\"><button>ปิด LED</button></a></p>";
+    html += "</body></html>";
+    server.send(200, "text/html", html);  // ส่ง HTML ไปยังเว็บเบราว์เซอร์
+  });
+
+  // Route สำหรับเปิด LED
+  server.on("/on", HTTP_GET, []() {
+    digitalWrite(ledPin, HIGH);  // เปิด LED
+    server.send(200, "text/html", "<h1>LED เปิดแล้ว</h1><a href=\"/\">กลับไปที่หน้าแรก</a>");
+  });
+
+  // Route สำหรับปิด LED
+  server.on("/off", HTTP_GET, []() {
+    digitalWrite(ledPin, LOW);  // ปิด LED
+    server.send(200, "text/html", "<h1>LED ปิดแล้ว</h1><a href=\"/\">กลับไปที่หน้าแรก</a>");
+  });
+
+  // เริ่ม Web Server
+  server.begin();
+}
+
+void loop() {
+  server.handleClient();  // รับคำขอจากลูกค้าและตอบกลับ
+}
+การอธิบายโค้ด:
+การเชื่อมต่อ Wi-Fi: ฟังก์ชัน WiFi.begin(ssid, password) ใช้เพื่อเชื่อมต่อกับเครือข่าย Wi-Fi ที่คุณตั้งค่าในโค้ด
+การสร้าง Web Server: สร้าง Web Server ที่ทำงานบนพอร์ต 80 (พอร์ตหลักสำหรับ HTTP)
+การควบคุม LED: ใช้ digitalWrite(ledPin, HIGH) เพื่อเปิด LED และ digitalWrite(ledPin, LOW) เพื่อปิด LED
+หน้า HTML: สร้างหน้าเว็บที่มีปุ่ม "เปิด LED" และ "ปิด LED"
+ขั้นตอนที่ 5: การอัพโหลดโค้ดไปยัง ESP8266
+เชื่อมต่อ ESP8266 กับคอมพิวเตอร์ผ่านสาย USB.
+เลือก Board ที่ถูกต้องใน Arduino IDE:
+ไปที่ Tools → Board → NodeMCU 1.0 (ESP-12E Module) หรือ Wemos D1 mini
+เลือก Port ที่เชื่อมต่อกับ ESP8266:
+ไปที่ Tools → Port → เลือกพอร์ตที่เชื่อมต่อกับ ESP8266
+กด Upload เพื่ออัพโหลดโค้ดไปยัง ESP8266.
+ขั้นตอนที่ 6: การตรวจสอบการทำงาน
+หลังจากอัพโหลดโค้ดเสร็จ Serial Monitor จะแสดง IP Address ของ ESP8266 ที่เชื่อมต่อกับ Wi-Fi
+เปิด เว็บเบราว์เซอร์ และพิมพ์ IP Address ของ ESP8266 ในแถบ URL.
+หน้าเว็บจะโหลดขึ้นมา ซึ่งจะมีปุ่ม "เปิด LED" และ "ปิด LED"
+เมื่อคุณคลิกที่ปุ่มใดปุ่มหนึ่ง LED จะเปิดหรือปิดตามคำขอ
+ขั้นตอนที่ 7: การทดสอบระบบ
+เปิด LED: เมื่อคลิกที่ปุ่ม เปิด LED บนหน้าเว็บ, LED บน ESP8266 จะเปิดขึ้น
+ปิด LED: เมื่อคลิกที่ปุ่ม ปิด LED บนหน้าเว็บ, LED บน ESP8266 จะปิดลง
+สรุปการทำงาน:
+ESP8266 จะทำหน้าที่เป็น Web Server และรับคำขอ HTTP ผ่าน Wi-Fi จากเว็บเบราว์เซอร์
+เว็บเบราว์เซอร์จะส่งคำขอให้เปิดหรือปิด LED ผ่าน URL เช่น /on หรือ /off
+LED จะถูกเปิดหรือปิดตามคำขอเหล่านั้น
+ตอนนี้คุณสามารถควบคุม LED บน ESP8266 ผ่าน เว็บเบราว์เซอร์ ได้แล้ว!
